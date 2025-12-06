@@ -7,6 +7,7 @@ using Tusk.Application.Environment;
 using Tusk.Application.Php;
 using Tusk.Application.Scaffolding;
 using Tusk.Domain.Php;
+using System.Diagnostics.CodeAnalysis;
 
 namespace Tusk.Cli;
 
@@ -39,6 +40,8 @@ internal static class CommandLineFactory
         rootCommand.Subcommands.Add(ScriptsCommand.Create(configProvider));
         rootCommand.Subcommands.Add(ListCommand.Create(installer));
         rootCommand.Subcommands.Add(InstallCommand.Create(installer));
+        rootCommand.Subcommands.Add(UninstallCommand.Create(installer));
+        rootCommand.Subcommands.Add(PruneCommand.Create(installer));
         rootCommand.Subcommands.Add(UseCommand.Create());
         rootCommand.Subcommands.Add(DefaultCommand.Create(resolver));
         rootCommand.Subcommands.Add(PhpCommand.Create(runtime, phpVersionOption));

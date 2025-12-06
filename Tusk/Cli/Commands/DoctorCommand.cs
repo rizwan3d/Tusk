@@ -1,10 +1,13 @@
 using System.CommandLine;
 using System.CommandLine.Invocation;
+using System.Diagnostics.CodeAnalysis;
 using System.Text.Json;
 using Tusk.Application.Composer;
 using Tusk.Application.Config;
 using Tusk.Application.Environment;
 using Tusk.Application.Php;
+using Tusk.Cli.Formatting;
+using Tusk.Domain.Cli.Doctor;
 using Tusk.Domain.Config;
 using Tusk.Domain.Php;
 using Tusk.Domain.Runtime;
@@ -21,7 +24,14 @@ internal static class DoctorCommand
         IComposerService composerService,
         IEnvironmentProbe environmentProbe)
     {
-        var command = new Command("doctor", "Show Tusk environment, paths, and PHP version resolution.");
+        var jsonOption = new Option<bool>("--json")
+        {
+            Description = "Output machine-readable JSON."
+        };
+        var command = new Command("doctor", "Show Tusk environment, paths, and PHP version resolution.")
+        {
+            jsonOption
+        };
 
         command.SetAction(async parseResult =>
         {
@@ -104,6 +114,47 @@ internal static class DoctorCommand
 
             string? composerPhar = composerService.FindComposerPhar(configResult.RootDirectory);
             string? composerExe = environmentProbe.FindSystemComposerExecutablePath();
+
+            bool asJson = parseResult.GetValue(jsonOption);
+            if (asJson)
+            {
+                var payload = new DoctorModel()
+                {
+                    Cwd = cwd,
+                    Platform = platform.Value, // or platform.ToString()
+
+                    TuskHome = tuskHome,
+                    VersionsRoot = versionsRoot,
+                    CacheRoot = cacheRoot,
+                    ManifestPath = manifestPath,
+                    GlobalConfigPath = globalConfigPath,
+
+                    Project = new DoctorModel.ProjectInfo
+                    {
+                        Root = configResult.RootDirectory,
+                        PhpVersion = projectPhpVersion
+                    },
+                    Resolution = new DoctorModel.ResolutionInfo
+                    {
+                        OverrideSpec = overrideSpec,
+                        ProjectVersion = projectPhpVersion,
+                        GlobalDefault = globalDefaultVersion,
+                        FinalVersion = finalVersion
+                    },
+
+                    PhpBinaryPath = phpBinaryPath,
+                    Installed = installed.Select(v => v.Value).ToArray(),
+
+                    Composer = new DoctorModel.ComposerInfo
+                    {
+                        ComposerPhar = composerPhar,
+                        ComposerExe = composerExe
+                    }
+                };
+
+                ConsoleFormatter.PrintDoctor(payload, true);
+                return;
+            }
 
             Console.WriteLine("Tusk Doctor");
             Console.WriteLine("-----------");

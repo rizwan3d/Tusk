@@ -22,8 +22,6 @@ jobs:
             rid: win-arm64
           - os: ubuntu-latest
             rid: linux-x64
-          - os: ubuntu-latest
-            rid: linux-arm64
           - os: macos-latest
             rid: osx-x64
           - os: macos-latest
@@ -61,7 +59,7 @@ jobs:
         shell: bash
         run: |
           OUT_DIR="Tusk/bin/$CONFIGURATION/net10.0/${{ matrix.rid }}/publish"
-          BINARY_NAME="tusk-${{ matrix.rid }}"
+          BINARY_NAME="tusk"
           mv "$OUT_DIR/Tusk" "$OUT_DIR/$BINARY_NAME" 2>/dev/null || mv "$OUT_DIR/Tusk.exe" "$OUT_DIR/$BINARY_NAME.exe"
           tar -C "$OUT_DIR" -czf "${BINARY_NAME}.tar.gz" .
 

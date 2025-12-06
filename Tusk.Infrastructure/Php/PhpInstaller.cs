@@ -90,6 +90,78 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         return Task.FromResult<IReadOnlyList<PhpVersion>>(versions);
     }
 
+    public async Task UninstallAsync(PhpVersion version, CancellationToken cancellationToken = default)
+    {
+        var installed = await ListInstalledAsync(cancellationToken).ConfigureAwait(false);
+        if (!installed.Any(v => string.Equals(v.Value, version.Value, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine($"[tusk] PHP {version.Value} is not installed; nothing to remove.");
+            return;
+        }
+
+        if (installed.Count == 1)
+        {
+            Console.WriteLine($"[tusk] Refusing to remove the only installed version ({version.Value}).");
+            return;
+        }
+
+        string dir = GetInstallDir(version.Value);
+        try
+        {
+            Directory.Delete(dir, recursive: true);
+            Console.WriteLine($"[tusk] Removed PHP {version.Value} at {dir}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[tusk] Failed to remove {dir}: {ex.Message}");
+        }
+    }
+
+    public async Task<int> PruneAsync(int keepLatest = 1, bool includeCache = true, CancellationToken cancellationToken = default)
+    {
+        var installed = (await ListInstalledAsync(cancellationToken).ConfigureAwait(false))
+            .OrderByDescending(v => v.Value, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var keepCount = Math.Max(keepLatest, 0);
+        var toKeep = installed.Take(keepCount).Select(v => v.Value).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        int removed = 0;
+
+        foreach (var v in installed.Skip(keepCount))
+        {
+            string dir = GetInstallDir(v.Value);
+            try
+            {
+                Directory.Delete(dir, recursive: true);
+                removed++;
+                Console.WriteLine($"[tusk] Pruned PHP {v.Value} at {dir}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[tusk] Failed to prune {dir}: {ex.Message}");
+            }
+        }
+
+        if (includeCache)
+        {
+            try
+            {
+                if (Directory.Exists(_cacheRoot))
+                {
+                    Directory.Delete(_cacheRoot, recursive: true);
+                    Directory.CreateDirectory(_cacheRoot);
+                    Console.WriteLine("[tusk] Cleared PHP cache.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[tusk] Failed to clear cache: {ex.Message}");
+            }
+        }
+
+        return removed;
+    }
+
     private string GetInstallDir(string exactVersion)
         => Path.Combine(_versionsRoot, _platform.Value, exactVersion);
 

@@ -9,5 +9,9 @@ public interface IPhpInstaller
     Task<string> GetInstalledPathAsync(PhpVersion version, CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<PhpVersion>> ListInstalledAsync(CancellationToken cancellationToken = default);
+
+    Task UninstallAsync(PhpVersion version, CancellationToken cancellationToken = default);
+
+    Task<int> PruneAsync(int keepLatest = 1, bool includeCache = true, CancellationToken cancellationToken = default);
     void Dispose();
 }

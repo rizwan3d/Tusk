@@ -1,18 +1,19 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.CommandLine;
+using System.Diagnostics.CodeAnalysis;
 using Tusk.Application.Composer;
 using Tusk.Application.Config;
 using Tusk.Application.Environment;
 using Tusk.Application.Php;
 using Tusk.Application.Runtime;
+using Tusk.Application.Scaffolding;
 using Tusk.Cli;
-using Tusk.Infrastructure.Config;
 using Tusk.Infrastructure.Composer;
+using Tusk.Infrastructure.Config;
 using Tusk.Infrastructure.Environment;
 using Tusk.Infrastructure.Php;
 using Tusk.Infrastructure.Runtime;
-using Tusk.Application.Scaffolding;
 using Tusk.Infrastructure.Scaffolding;
 
 namespace Tusk;
