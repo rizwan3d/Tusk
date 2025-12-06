@@ -80,7 +80,7 @@ public sealed class PhpVersionsManifest
         out PhpArtifact artifact)
     {
         resolvedVersion = "";
-        artifact = default!;
+        artifact = new PhpArtifact();
 
         if (string.IsNullOrWhiteSpace(spec))
         {
@@ -95,11 +95,12 @@ public sealed class PhpVersionsManifest
         if (entry.Aliases.TryGetValue(spec, out var aliasTarget) &&
             !string.IsNullOrWhiteSpace(aliasTarget))
         {
-            spec = aliasTarget;
+            spec = aliasTarget!;
         }
 
-        if (entry.Versions.TryGetValue(spec, out artifact))
+        if (entry.Versions.TryGetValue(spec, out var foundArtifact) && foundArtifact is not null)
         {
+            artifact = foundArtifact;
             resolvedVersion = spec;
             return true;
         }
