@@ -1,0 +1,6 @@
+<Solution>
+  <Project Path="Tusk.Domain/Tusk.Domain.csproj" />
+  <Project Path="Tusk.Application/Tusk.Application.csproj" />
+  <Project Path="Tusk.Infrastructure/Tusk.Infrastructure.csproj" />
+  <Project Path="Tusk/Tusk.csproj" />
+</Solution>

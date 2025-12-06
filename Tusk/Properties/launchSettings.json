@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Tusk": {
+      "commandName": "Project",
+      "commandLineArgs": "php -v",
+      "workingDirectory": "H:\\tusk"
+    }
+  }
+}

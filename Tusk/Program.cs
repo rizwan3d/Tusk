@@ -1,0 +1,61 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using System.CommandLine;
+using Tusk.Application.Composer;
+using Tusk.Application.Config;
+using Tusk.Application.Environment;
+using Tusk.Application.Php;
+using Tusk.Application.Runtime;
+using Tusk.Cli;
+using Tusk.Infrastructure.Config;
+using Tusk.Infrastructure.Composer;
+using Tusk.Infrastructure.Environment;
+using Tusk.Infrastructure.Php;
+using Tusk.Infrastructure.Runtime;
+using Tusk.Application.Scaffolding;
+using Tusk.Infrastructure.Scaffolding;
+
+namespace Tusk;
+
+internal static class Program
+{
+    public static async Task<int> Main(string[] args)
+    {
+        var builder = Host.CreateApplicationBuilder(args);
+        ConfigureServices(builder.Services);
+
+        using IHost host = builder.Build();
+
+        RootCommand rootCommand = await CommandLineFactory.CreateAsync(host.Services).ConfigureAwait(false);
+
+        return await rootCommand.Parse(args).InvokeAsync().ConfigureAwait(false);
+    }
+
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var tuskHome = Path.Combine(home, ".tusk");
+        Directory.CreateDirectory(tuskHome);
+        var manifestPath = Path.Combine(tuskHome, "php-versions.json");
+
+        PhpVersionsManifest manifest;
+        if (File.Exists(manifestPath))
+        {
+            manifest = PhpVersionsManifest.LoadFromFile(manifestPath);
+        }
+        else
+        {
+            manifest = new PhpVersionsManifest();
+        }
+
+        services.AddSingleton(manifest);
+        services.AddSingleton<IPhpInstaller, PhpInstaller>();
+        services.AddSingleton<IPhpVersionResolver, PhpVersionResolver>();
+        services.AddSingleton<IPhpRuntimeService, PhpRuntimeService>();
+        services.AddSingleton<IProcessRunner, ProcessExecution>();
+        services.AddSingleton<IProjectConfigProvider, ProjectConfigProvider>();
+        services.AddSingleton<IComposerService, ComposerService>();
+        services.AddSingleton<IEnvironmentProbe, EnvironmentProbe>();
+        services.AddSingleton<IPublicIndexScaffolder, PublicIndexScaffolder>();
+    }
+}
