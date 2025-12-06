@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Text;
 
 namespace Tusk.Domain.Cli.Doctor;
-
 public sealed class DoctorModel
 {
     public required string Cwd { get; init; }

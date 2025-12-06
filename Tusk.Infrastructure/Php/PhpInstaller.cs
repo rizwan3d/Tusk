@@ -1,6 +1,7 @@
-using System.IO.Compression;
-using System.Security.Cryptography;
 using System.Diagnostics;
+using System.IO.Compression;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using Tusk.Application.Php;
 using Tusk.Domain.Php;
 using Tusk.Domain.Runtime;
@@ -9,16 +10,20 @@ namespace Tusk.Infrastructure.Php;
 
 public class PhpInstaller : IPhpInstaller, IDisposable
 {
+    private const string UserAgent = "tusk-cli/1.0 (+https://github.com/)";
+    private const string LinuxHerdBase = "https://download.herdphp.com/herd-lite/linux";
     private readonly PhpVersionsManifest _manifest;
     private readonly PlatformId _platform;
+    private readonly WindowsPhpFeed _windowsFeed;
     private readonly string _versionsRoot;
     private readonly string _cacheRoot;
     private readonly HttpClient _httpClient;
     private bool _disposed;
 
-    public PhpInstaller(PhpVersionsManifest manifest, HttpClient? httpClient = null)
+    public PhpInstaller(PhpVersionsManifest manifest, WindowsPhpFeed windowsFeed, HttpClient? httpClient = null)
     {
         _manifest = manifest;
+        _windowsFeed = windowsFeed;
         _platform = PlatformId.DetectCurrent();
 
         var home = System.Environment.GetFolderPath(System.Environment.SpecialFolder.UserProfile);
@@ -31,15 +36,51 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         Directory.CreateDirectory(_cacheRoot);
 
         _httpClient = httpClient ?? new HttpClient();
+        _httpClient.DefaultRequestHeaders.UserAgent.ParseAdd(UserAgent);
     }
 
-    public async Task InstallAsync(PhpVersion versionSpec, CancellationToken cancellationToken = default)
+    public async Task InstallAsync(PhpVersion versionSpec, bool ignoreChecksum = false, CancellationToken cancellationToken = default)
     {
+        string resolvedVersion;
+        PhpArtifact artifact;
+
         if (!_manifest.TryResolveArtifact(_platform, versionSpec.Value,
-                out var resolvedVersion, out var artifact))
+                out resolvedVersion, out artifact))
         {
-            throw new InvalidOperationException(
-                $"PHP version '{versionSpec.Value}' is not defined for platform '{_platform.Value}' in php-versions.json.");
+            if (OperatingSystem.IsWindows())
+            {
+                var result = await _windowsFeed.ResolveAsync(versionSpec.Value, cancellationToken).ConfigureAwait(false);
+                if (!result.Success)
+                {
+                    throw new InvalidOperationException(
+                        $"PHP version '{versionSpec.Value}' is not available for platform '{_platform.Value}' (only 64-bit NTS builds are supported on Windows).");
+                }
+
+                resolvedVersion = result.ResolvedVersion;
+                artifact = result.Artifact;
+            }
+            else if (OperatingSystem.IsLinux())
+            {
+                resolvedVersion = versionSpec.Value;
+                string archSegment = RuntimeInformation.ProcessArchitecture switch
+                {
+                    Architecture.X64 => "x64",
+                    Architecture.Arm64 => "arm64",
+                    _ => throw new PlatformNotSupportedException($"Unsupported Linux architecture: {RuntimeInformation.ProcessArchitecture}")
+                };
+
+                var url = $"{LinuxHerdBase}/{archSegment}/{resolvedVersion}/php";
+                artifact = new PhpArtifact
+                {
+                    Url = url,
+                    Sha256 = string.Empty
+                };
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    $"PHP version '{versionSpec.Value}' is not defined for platform '{_platform.Value}' in php-versions.json.");
+            }
         }
 
         string installDir = GetInstallDir(resolvedVersion);
@@ -52,7 +93,12 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         Console.WriteLine($"[tusk] Installing PHP {resolvedVersion} for {_platform.Value}...");
         Directory.CreateDirectory(installDir);
 
-        string archivePath = await DownloadArchiveAsync(artifact.Url, artifact.Sha256, resolvedVersion, cancellationToken).ConfigureAwait(false);
+        string archivePath = await DownloadArchiveAsync(
+            artifact.Url,
+            artifact.Sha256,
+            resolvedVersion,
+            ignoreChecksum,
+            cancellationToken).ConfigureAwait(false);
         ExtractArchive(archivePath, installDir);
         await NormalizePhpLayoutAsync(installDir, cancellationToken).ConfigureAwait(false);
 
@@ -169,6 +215,7 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         string url,
         string expectedSha256,
         string version,
+        bool ignoreChecksum,
         CancellationToken ct)
     {
         string versionCacheDir = Path.Combine(_cacheRoot, version);
@@ -180,27 +227,47 @@ public class PhpInstaller : IPhpInstaller, IDisposable
 
         if (File.Exists(archivePath))
         {
-            if (await VerifySha256Async(archivePath, expectedSha256, ct).ConfigureAwait(false))
+            if (ignoreChecksum || await VerifySha256Async(archivePath, expectedSha256, ct).ConfigureAwait(false))
             {
                 Console.WriteLine($"[tusk] Using cached archive {archivePath}");
                 return archivePath;
             }
 
-            Console.WriteLine("[tusk] Cached archive checksum mismatch, deleting...");
+            Console.WriteLine("[tusk] Cached archive checksum mismatch, deleting (pass --ignore-checksum to skip)...");
             File.Delete(archivePath);
         }
 
         Console.WriteLine($"[tusk] Downloading {url}...");
-        await using (var responseStream = await _httpClient.GetStreamAsync(uri, ct).ConfigureAwait(false))
-        await using (var fileStream = File.Create(archivePath))
+        var tempPath = archivePath + ".part";
+        using (var request = new HttpRequestMessage(HttpMethod.Get, uri))
         {
+            request.Headers.UserAgent.ParseAdd(UserAgent);
+            using var response = await _httpClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, ct).ConfigureAwait(false);
+            response.EnsureSuccessStatusCode();
+
+            await using var responseStream = await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false);
+            await using var fileStream = File.Create(tempPath);
             await responseStream.CopyToAsync(fileStream, ct).ConfigureAwait(false);
         }
 
-        if (!await VerifySha256Async(archivePath, expectedSha256, ct).ConfigureAwait(false))
+        // Move completed temp file into cache
+        if (File.Exists(archivePath))
         {
             File.Delete(archivePath);
-            throw new InvalidOperationException("Checksum mismatch for downloaded PHP archive.");
+        }
+        File.Move(tempPath, archivePath);
+
+        if (!ignoreChecksum && !string.IsNullOrWhiteSpace(expectedSha256))
+        {
+            if (!await VerifySha256Async(archivePath, expectedSha256, ct).ConfigureAwait(false))
+            {
+                File.Delete(archivePath);
+                throw new InvalidOperationException("Checksum mismatch for downloaded PHP archive.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("[tusk] Skipping checksum verification.");
         }
 
         return archivePath;
@@ -264,23 +331,39 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         Directory.CreateDirectory(binDir);
 
         string phpName = OperatingSystem.IsWindows() ? "php.exe" : "php";
+        string windowsAltName = "php-win.exe";
 
         string? existing = Directory
             .EnumerateFiles(installDir, phpName, SearchOption.AllDirectories)
-            .FirstOrDefault() ?? throw new InvalidOperationException("Extracted archive does not contain a PHP binary.");
-        string targetPath = Path.Combine(binDir, phpName);
+            .FirstOrDefault();
 
-        if (!File.Exists(targetPath))
+        // If php.exe not found on Windows, try php-win.exe then rename it
+        if (existing is null && OperatingSystem.IsWindows())
         {
-            File.Move(existing, targetPath);
+            existing = Directory
+                .EnumerateFiles(installDir, windowsAltName, SearchOption.AllDirectories)
+                .FirstOrDefault();
         }
-        else
+
+        if (existing is null)
         {
-            if (!string.Equals(existing, targetPath, StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Extracted archive does not contain a PHP binary.");
+        }
+
+        if (OperatingSystem.IsWindows() && Path.GetFileName(existing).Equals(windowsAltName, StringComparison.OrdinalIgnoreCase))
+        {
+            var renamed = Path.Combine(Path.GetDirectoryName(existing)!, phpName);
+            try
             {
-                File.Delete(existing);
+                File.Move(existing, renamed);
+                existing = renamed;
+            }
+            catch (IOException)
+            {
+                // If move fails (e.g., file exists), fall back to existing path
             }
         }
+        string targetPath = Path.Combine(binDir, phpName);
 
         await Task.CompletedTask;
     }

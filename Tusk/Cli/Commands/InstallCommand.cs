@@ -13,10 +13,15 @@ internal static class InstallCommand
         {
             Description = "PHP version (e.g. 8.3, 8.2, latest)."
         };
-
+        var ignoreChecksumOption = new Option<bool>("--ignore-checksum")
+        {
+            Description = "Skip archive checksum validation (use with caution).",
+            DefaultValueFactory = (e) => true
+        };
         var command = new Command("install", "Install a PHP runtime version.")
         {
-            versionArgument
+            versionArgument,
+            ignoreChecksumOption
         };
         command.Aliases.Add("i");
 
@@ -28,9 +33,10 @@ internal static class InstallCommand
                 await Console.Error.WriteLineAsync("[tusk] Version cannot be empty.").ConfigureAwait(false);
                 return;
             }
+            bool ignoreChecksum = parseResult.GetValue(ignoreChecksumOption);
             var version = new PhpVersion(versionText);
             Console.WriteLine($"[tusk] Installing PHP {version}...");
-            await installer.InstallAsync(version).ConfigureAwait(false);
+            await installer.InstallAsync(version, ignoreChecksum).ConfigureAwait(false);
         });
 
         return command;

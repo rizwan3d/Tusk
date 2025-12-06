@@ -7,6 +7,7 @@ using Tusk.Application.Environment;
 using Tusk.Application.Php;
 using Tusk.Application.Scaffolding;
 using Tusk.Domain.Php;
+using Tusk.Infrastructure.Php;
 using System.Diagnostics.CodeAnalysis;
 
 namespace Tusk.Cli;
@@ -22,6 +23,7 @@ internal static class CommandLineFactory
         var composerService = services.GetRequiredService<IComposerService>();
         var environmentProbe = services.GetRequiredService<IEnvironmentProbe>();
         var publicIndexScaffolder = services.GetRequiredService<IPublicIndexScaffolder>();
+        var windowsFeed = services.GetRequiredService<WindowsPhpFeed>();
 
         PhpVersion phpVersion = await resolver.ResolveForCurrentDirectoryAsync().ConfigureAwait(false);
 
@@ -42,6 +44,7 @@ internal static class CommandLineFactory
         rootCommand.Subcommands.Add(InstallCommand.Create(installer));
         rootCommand.Subcommands.Add(UninstallCommand.Create(installer));
         rootCommand.Subcommands.Add(PruneCommand.Create(installer));
+        rootCommand.Subcommands.Add(AvailableCommand.Create(windowsFeed));
         rootCommand.Subcommands.Add(UseCommand.Create());
         rootCommand.Subcommands.Add(DefaultCommand.Create(resolver));
         rootCommand.Subcommands.Add(PhpCommand.Create(runtime, phpVersionOption));

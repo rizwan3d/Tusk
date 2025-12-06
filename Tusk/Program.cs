@@ -50,6 +50,7 @@ internal static class Program
         }
 
         services.AddSingleton(manifest);
+        services.AddSingleton<WindowsPhpFeed>();
         services.AddSingleton<IPhpInstaller, PhpInstaller>();
         services.AddSingleton<IPhpVersionResolver, PhpVersionResolver>();
         services.AddSingleton<IPhpRuntimeService, PhpRuntimeService>();

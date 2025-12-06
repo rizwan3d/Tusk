@@ -11,6 +11,7 @@ namespace Tusk.Cli.Formatting;
     GenerationMode = JsonSourceGenerationMode.Metadata)]
 [JsonSerializable(typeof(string[]))]
 [JsonSerializable(typeof(DoctorModel))]
+[JsonSerializable(typeof(AvailableRequest))]
 internal sealed partial class CliJsonContext : JsonSerializerContext
 {
 }

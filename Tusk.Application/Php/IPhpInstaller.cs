@@ -4,7 +4,7 @@ namespace Tusk.Application.Php;
 
 public interface IPhpInstaller
 {
-    Task InstallAsync(PhpVersion version, CancellationToken cancellationToken = default);
+    Task InstallAsync(PhpVersion version, bool ignoreChecksum = false, CancellationToken cancellationToken = default);
 
     Task<string> GetInstalledPathAsync(PhpVersion version, CancellationToken cancellationToken = default);
 
