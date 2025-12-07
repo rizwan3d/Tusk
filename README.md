@@ -1,4 +1,4 @@
-# Tusk
+Ôªø# Tusk
 
 Tusk is a cross-platform CLI tool that manages **local PHP runtimes** and runs **Composer** and PHP scripts in a consistent, project-aware way.
 
@@ -9,7 +9,7 @@ It lets you:
 - Generate a `tusk.json` project config
 - Run PHP directly via Tusk
 - Proxy Composer commands through a known PHP version
-- Define reusable ìscriptsî in `tusk.json` and run them easily
+- Define reusable ‚Äúscripts‚Äù in `tusk.json` and run them easily
 - Inspect your environment and check what Tusk sees (`tusk doctor`)
 
 ---
@@ -30,6 +30,7 @@ It lets you:
   - [`tusk use`](#tusk-use)
   - [`tusk default`](#tusk-default)
   - [`tusk composer`](#tusk-composer)
+  - [`tusk isolate`](#tusk-isolate)
   - [`tusk doctor`](#tusk-doctor)
 - [Data & directories](#data--directories)
 - [License](#license)
@@ -62,6 +63,7 @@ It lets you:
   - Uses `System.CommandLine` for a clean CLI
   - Uses `tusk doctor` to show what Tusk sees (PHP, Composer, config, etc.)
   - Scaffolds a basic `public/index.php` that tries to load `vendor/autoload.php`
+  - Optional per-project PHP home (`.tusk/php`) to keep ini/extension overrides local
 
 ---
 
@@ -153,19 +155,19 @@ Tusk looks for a `tusk.json` starting from the current directory and walking up 
 
 * **`php`**
 
-  * `version` (string, optional) ñ preferred PHP version for this project (e.g. `"8.3"` or `"latest"`).
-  * `ini` (array of string) ñ extra `-d` INI settings to pass to PHP.
-  * `args` (array of string) ñ extra arguments always passed to PHP.
+  * `version` (string, optional) ‚Äì preferred PHP version for this project (e.g. `"8.3"` or `"latest"`).
+  * `ini` (array of string) ‚Äì extra `-d` INI settings to pass to PHP.
+  * `args` (array of string) ‚Äì extra arguments always passed to PHP.
 
 * **`scripts`** (object)
 
   * keys = script names (e.g. `"serve"`, `"test"`, `"console"`).
   * values = **TuskScript**:
 
-    * `description` (string, optional) ñ human-readable description.
-    * `phpFile` (string, **required**) ñ the PHP entry file or command (e.g. `"public/index.php"`, `"bin/console"`, `"-S"`).
-    * `phpArgs` (array of string, optional) ñ arguments placed **before** the `phpFile` or used as raw PHP arguments.
-    * `args` (array of string, optional) ñ additional arguments appended after `phpFile` / `phpArgs`.
+    * `description` (string, optional) ‚Äì human-readable description.
+    * `phpFile` (string, **required**) ‚Äì the PHP entry file or command (e.g. `"public/index.php"`, `"bin/console"`, `"-S"`).
+    * `phpArgs` (array of string, optional) ‚Äì arguments placed **before** the `phpFile` or used as raw PHP arguments.
+    * `args` (array of string, optional) ‚Äì additional arguments appended after `phpFile` / `phpArgs`.
 
 Internally, these are represented by `TuskConfig` and `TuskConfig.TuskScript` in `Tusk.Domain.Config`.
 
@@ -175,15 +177,15 @@ Internally, these are represented by `TuskConfig` and `TuskConfig.TuskScript` in
 
 ### `tusk init`
 
-Create a starter `tusk.json` for the current project and scaffold `public/index.php` if it doesnít exist.
+Create a starter `tusk.json` for the current project and scaffold `public/index.php` if it doesn‚Äôt exist.
 
 ```bash
 tusk init [--framework <Generic|Laravel|Symfony>] [--php <version>] [--force]
 ```
 
-* `--framework` ñ choose a preset (Generic, Laravel, Symfony).
-* `--php` ñ default PHP version to write into `tusk.json`.
-* `--force` ñ overwrite an existing `tusk.json`.
+* `--framework` ‚Äì choose a preset (Generic, Laravel, Symfony).
+* `--php` ‚Äì default PHP version to write into `tusk.json`.
+* `--force` ‚Äì overwrite an existing `tusk.json`.
 
 This uses `IPhpVersionResolver`, `TuskConfigSerializer` and `IPublicIndexScaffolder` under the hood.
 
@@ -350,6 +352,18 @@ Internally, `IComposerService`:
 
 ---
 
+### `tusk isolate`
+
+Create a per-project PHP home in `.tusk/php/` with its own `php.ini` and `conf.d/` directory for extension ini files.
+
+```bash
+tusk isolate
+```
+
+After running this once in a project, Tusk will automatically set `PHPRC` and `PHP_INI_SCAN_DIR` to use your local `php.ini` and `conf.d/` when executing PHP/Composer through Tusk, keeping settings and extensions from bleeding across projects.
+
+---
+
 ### `tusk doctor`
 
 Inspect environment and show what Tusk sees:
@@ -366,6 +380,7 @@ Typical output includes:
 * Effective project / global PHP version
 * Locations of `composer.phar` and system `composer`
 * Whether `tusk.json` was found and where
+* Whether per-project isolation is enabled for this directory (and paths to `.tusk/php/php.ini` and `conf.d` if present)
 
 This uses:
 
@@ -390,5 +405,5 @@ Tusk stores its own data under:
 
 Per-project data:
 
-* `tusk.json` ñ project configuration (PHP + scripts).
-* `.tusk.php-version` ñ per-project PHP version pin.
+* `tusk.json` ‚Äì project configuration (PHP + scripts).
+* `.tusk.php-version` ‚Äì per-project PHP version pin.
