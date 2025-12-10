@@ -81,39 +81,24 @@ It lets you:
 
 ## Installation
 
-Clone the repo:
+### Quick install (prebuilt binaries)
+
+Downloads come from the latest release at `https://github.com/rizwan3d/Tusk/releases/latest/download/<platform-archive>`.
 
 ```bash
-git clone https://github.com/tusk/tusk.git
-cd tusk
-````
+# Linux (x64)
+bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Tusk/main/install/linux.sh)
 
-Build:
-
-```bash
-dotnet build
+# macOS (arm64 or x64)
+bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Tusk/main/install/mac.sh)
 ```
 
-To publish a single file **native** binary for your current platform (NativeAOT, no CoreCLR dependency):
-
-```bash
-# Windows
-dotnet publish Tusk/Tusk.csproj -c Release -r win-x64
-
-# Linux
-dotnet publish Tusk/Tusk.csproj -c Release -r linux-x64
-
-# macOS arm64
-dotnet publish Tusk/Tusk.csproj -c Release -r osx-arm64
+```powershell
+# Windows (PowerShell 7+; AMD64 or ARM64)
+pwsh -NoLogo -NoProfile -c "irm https://raw.githubusercontent.com/rizwan3d/Tusk/main/install/windows.ps1 | iex"
 ```
 
-The binary will be in:
-
-```text
-Tusk/bin/Release/net10.0/<rid>/publish/Tusk[.exe]
-```
-
-Add that folder to your `PATH`, or copy the binary somewhere on your `PATH` (e.g. `~/bin/tusk`).
+The installers place `tusk` under a user-scoped bin directory (`~/.tusk/bin` on Unix, `%LOCALAPPDATA%\Tusk\bin` on Windows) and add it to `PATH`.
 
 ---
 
