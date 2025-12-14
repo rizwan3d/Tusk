@@ -1,0 +1,12 @@
+<Solution>
+  <Project Path="Ivory.Domain/Ivory.Domain.csproj" />
+  <Folder Name="/Solution Items/">
+    <File Path=".gitattributes" />
+    <File Path=".gitignore" />
+    <File Path="LICENSE.txt" />
+    <File Path="README.md" />
+  </Folder>
+  <Project Path="Ivory.Application/Ivory.Application.csproj" />
+  <Project Path="Ivory.Infrastructure/Ivory.Infrastructure.csproj" />
+  <Project Path="Ivory/Ivory.csproj" />
+</Solution>

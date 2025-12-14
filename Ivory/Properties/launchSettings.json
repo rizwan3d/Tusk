@@ -1,0 +1,9 @@
+﻿{
+  "profiles": {
+    "Ivory": {
+      "commandName": "Project",
+      "commandLineArgs": "php -v",
+      "workingDirectory": "H:\\ivory"
+    }
+  }
+}

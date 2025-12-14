@@ -1,4 +1,4 @@
-name: CI
+﻿name: CI
 
 on:
   pull_request:
@@ -18,7 +18,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]
 
     env:
-      PROJECT_PATH: Tusk/Tusk.csproj
+      PROJECT_PATH: Ivory/Ivory.csproj
       CONFIGURATION: Release
 
     steps:
@@ -35,3 +35,4 @@ jobs:
 
       - name: Build
         run: dotnet build ${{ env.PROJECT_PATH }} -c ${{ env.CONFIGURATION }} --no-restore
+

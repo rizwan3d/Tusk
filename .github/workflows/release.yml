@@ -1,4 +1,4 @@
-name: Release
+﻿name: Release
 
 on:
   push:
@@ -30,7 +30,7 @@ jobs:
             rid: osx-arm64
 
     env:
-      PROJECT_PATH: Tusk/Tusk.csproj
+      PROJECT_PATH: Ivory/Ivory.csproj
       CONFIGURATION: Release
 
     steps:
@@ -60,9 +60,9 @@ jobs:
       - name: Archive binary
         shell: bash
         run: |
-          OUT_DIR="Tusk/bin/$CONFIGURATION/net10.0/${{ matrix.rid }}/publish"
-          BINARY_NAME="tusk-${{ matrix.rid }}"
-          mv "$OUT_DIR/Tusk" "$OUT_DIR/$BINARY_NAME" 2>/dev/null || mv "$OUT_DIR/Tusk.exe" "$OUT_DIR/$BINARY_NAME.exe"
+          OUT_DIR="Ivory/bin/$CONFIGURATION/net10.0/${{ matrix.rid }}/publish"
+          BINARY_NAME="iv-${{ matrix.rid }}"
+          mv "$OUT_DIR/iv" "$OUT_DIR/$BINARY_NAME" 2>/dev/null || mv "$OUT_DIR/iv.exe" "$OUT_DIR/$BINARY_NAME.exe"
           tar -C "$OUT_DIR" -czf "${BINARY_NAME}.tar.gz" .
 
       - name: Upload Release Assets
@@ -70,4 +70,4 @@ jobs:
         if: github.ref_type == 'tag'
         with:
           files: |
-            tusk-${{ matrix.rid }}*.tar.gz
+            iv-${{ matrix.rid }}*.tar.gz

@@ -1,16 +1,16 @@
-﻿# Tusk
+﻿# Ivory
 
-Tusk is a cross-platform CLI tool that manages **local PHP runtimes** and runs **Composer** and PHP scripts in a consistent, project-aware way.
+Ivory is a cross-platform CLI tool that manages **local PHP runtimes** and runs **Composer** and PHP scripts in a consistent, project-aware way.
 
 It lets you:
 
-- Install and manage multiple PHP versions under `~/.tusk`
+- Install and manage multiple PHP versions under `~/.ivory`
 - Pick a **default (global)** PHP version and **per-project** version
-- Generate a `tusk.json` project config
-- Run PHP directly via Tusk
+- Generate a `ivory.json` project config
+- Run PHP directly via Ivory
 - Proxy Composer commands through a known PHP version
-- Define reusable “scripts” in `tusk.json` and run them easily
-- Inspect your environment and check what Tusk sees (`tusk doctor`)
+- Define reusable “scripts” in `ivory.json` and run them easily
+- Inspect your environment and check what Ivory sees (`ivory doctor`)
 
 ---
 
@@ -19,22 +19,22 @@ It lets you:
 - [Features](#features)
 - [Requirements](#requirements)
 - [Installation](#installation)
-- [Configuration (`tusk.json`)](#configuration-tuskjson)
+- [Configuration (`ivory.json`)](#configuration-ivoryjson)
 - [Commands](#commands)
-  - [`tusk init`](#tusk-init)
-  - [`tusk install`](#tusk-install)
-  - [`tusk list`](#tusk-list)
-  - [`tusk php`](#tusk-php)
-  - [`tusk run`](#tusk-run)
-  - [`tusk scripts`](#tusk-scripts)
-  - [`tusk use`](#tusk-use)
-  - [`tusk default`](#tusk-default)
-  - [`tusk composer`](#tusk-composer)
-  - [`tusk isolate`](#tusk-isolate)
-  - [`tusk scaffold:ci`](#tusk-scaffoldci)
-  - [`tusk scaffold:docker`](#tusk-scaffolddocker)
-  - [`tusk completion`](#tusk-completion)
-  - [`tusk doctor`](#tusk-doctor)
+  - [`ivory init`](#ivory-init)
+  - [`ivory install`](#ivory-install)
+  - [`ivory list`](#ivory-list)
+  - [`ivory php`](#ivory-php)
+  - [`ivory run`](#ivory-run)
+  - [`ivory scripts`](#ivory-scripts)
+  - [`ivory use`](#ivory-use)
+  - [`ivory default`](#ivory-default)
+  - [`ivory composer`](#ivory-composer)
+  - [`ivory isolate`](#ivory-isolate)
+  - [`ivory scaffold:ci`](#ivory-scaffoldci)
+  - [`ivory scaffold:docker`](#ivory-scaffolddocker)
+  - [`ivory completion`](#ivory-completion)
+  - [`ivory doctor`](#ivory-doctor)
 - [Data & directories](#data--directories)
 - [License](#license)
 
@@ -43,19 +43,19 @@ It lets you:
 ## Features
 
 - **Local PHP version management**
-  - Installs PHP builds under `~/.tusk/versions/<platform>/<version>`
-  - Uses a JSON manifest (`~/.tusk/php-versions.json`) to know where to download PHP from
-  - `tusk install 8.3` etc.
+  - Installs PHP builds under `~/.ivory/versions/<platform>/<version>`
+  - Uses a JSON manifest (`~/.ivory/php-versions.json`) to know where to download PHP from
+  - `ivory install 8.3` etc.
 
 - **Project-aware PHP selection**
-  - Per-project PHP version via `.tusk.php-version`
-  - Global default PHP version via `tusk default`
+  - Per-project PHP version via `.ivory.php-version`
+  - Global default PHP version via `ivory default`
   - Falls back to system `php` when appropriate
 
-- **Project configuration with `tusk.json`**
+- **Project configuration with `ivory.json`**
   - `php.version`, extra INI and CLI args
   - Named scripts that describe how to run your app/tools
-  - Framework presets (Generic, Laravel, Symfony) via `tusk init`
+  - Framework presets (Generic, Laravel, Symfony) via `ivory init`
 
 - **Composer integration**
   - Finds or downloads a `composer.phar`
@@ -64,15 +64,15 @@ It lets you:
 
   - **Nice DX**
     - Uses `System.CommandLine` for a clean CLI
-    - Uses `tusk doctor` to show what Tusk sees (PHP, Composer, config, etc.)
+    - Uses `ivory doctor` to show what Ivory sees (PHP, Composer, config, etc.)
     - Scaffolds a basic `public/index.php` that tries to load `vendor/autoload.php`
-    - Optional per-project PHP home (`.tusk/php`) to keep ini overrides local
+    - Optional per-project PHP home (`.ivory/php`) to keep ini overrides local
 
 ---
 
 ## Requirements
 
-- **.NET SDK** with support for `net10.0` (Tusk targets `net10.0` in `Tusk.csproj`).
+- **.NET SDK** with support for `net10.0` (Ivory targets `net10.0` in `Ivory.csproj`).
 - Supported runtime platforms:
   - Windows x64
   - Linux x64
@@ -83,42 +83,42 @@ It lets you:
 
 ### Quick install (prebuilt binaries)
 
-Downloads come from the latest release at `https://github.com/rizwan3d/Tusk/releases/latest/download/<platform-archive>`.
+Downloads come from the latest release at `https://github.com/rizwan3d/Ivory/releases/latest/download/<platform-archive>`.
 
 ```bash
 # Linux (x64)
-bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Tusk/refs/heads/master/install/linux.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Ivory/refs/heads/master/install/linux.sh)
 
 # macOS (arm64 or x64)
-bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Tusk/refs/heads/master/install/mac.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Ivory/refs/heads/master/install/mac.sh)
 ```
 
 ```powershell
 # Windows (PowerShell 5+; AMD64 or ARM64)
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/rizwan3d/Tusk/refs/heads/master/install/windows.ps1 | iex"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/rizwan3d/Ivory/refs/heads/master/install/windows.ps1 | iex"
 ```
 
-The installers place `tusk` under a user-scoped bin directory (`~/.tusk/bin` on Unix, `%LOCALAPPDATA%\Tusk\bin` on Windows) and add it to `PATH`.
+The installers place `ivory` under a user-scoped bin directory (`~/.ivory/bin` on Unix, `%LOCALAPPDATA%\Ivory\bin` on Windows) and add it to `PATH`.
 
 ### Uninstall
 
 ```bash
 # Linux/macOS
-bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Tusk/refs/heads/master/install/uninstall.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/rizwan3d/Ivory/refs/heads/master/install/uninstall.sh)
 ```
 
 ```powershell
 # Windows (PowerShell 5+)
-powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/rizwan3d/Tusk/refs/heads/master/install/uninstall.ps1 | iex"
+powershell -NoLogo -NoProfile -ExecutionPolicy Bypass -Command "irm https://raw.githubusercontent.com/rizwan3d/Ivory/refs/heads/master/install/uninstall.ps1 | iex"
 ```
 
 ---
 
-## Configuration (`tusk.json`)
+## Configuration (`ivory.json`)
 
-Tusk looks for a `tusk.json` starting from the current directory and walking up parent directories.
+Ivory looks for a `ivory.json` starting from the current directory and walking up parent directories.
 
-### Example `tusk.json`
+### Example `ivory.json`
 
 ```json
 {
@@ -162,104 +162,104 @@ Tusk looks for a `tusk.json` starting from the current directory and walking up 
 * **`scripts`** (object)
 
   * keys = script names (e.g. `"serve"`, `"test"`, `"console"`).
-  * values = **TuskScript**:
+  * values = **IvoryScript**:
 
     * `description` (string, optional) – human-readable description.
     * `phpFile` (string, **required**) – the PHP entry file or command (e.g. `"public/index.php"`, `"bin/console"`, `"-S"`).
     * `phpArgs` (array of string, optional) – arguments placed **before** the `phpFile` or used as raw PHP arguments.
     * `args` (array of string, optional) – additional arguments appended after `phpFile` / `phpArgs`.
 
-Internally, these are represented by `TuskConfig` and `TuskConfig.TuskScript` in `Tusk.Domain.Config`.
+Internally, these are represented by `IvoryConfig` and `IvoryConfig.IvoryScript` in `Ivory.Domain.Config`.
 
 ---
 
 ## Commands
 
-### `tusk init`
+### `ivory init`
 
-Create a starter `tusk.json` for the current project and scaffold `public/index.php` if it doesn’t exist.
+Create a starter `ivory.json` for the current project and scaffold `public/index.php` if it doesn’t exist.
 
 ```bash
-tusk init [--framework <Generic|Laravel|Symfony>] [--php <version>] [--force]
+ivory init [--framework <Generic|Laravel|Symfony>] [--php <version>] [--force]
 ```
 
 * `--framework` – choose a preset (Generic, Laravel, Symfony).
-* `--php` – default PHP version to write into `tusk.json`.
-* `--force` – overwrite an existing `tusk.json`.
+* `--php` – default PHP version to write into `ivory.json`.
+* `--force` – overwrite an existing `ivory.json`.
 
-This uses `IPhpVersionResolver`, `TuskConfigSerializer` and `IPublicIndexScaffolder` under the hood.
+This uses `IPhpVersionResolver`, `IvoryConfigSerializer` and `IPublicIndexScaffolder` under the hood.
 
 ---
 
-### `tusk install`
+### `ivory install`
 
 Install a PHP runtime for the current platform.
 
 ```bash
-tusk install <version>
+ivory install <version>
 ```
 
 Examples:
 
 ```bash
-tusk install 8.3
-tusk install 8.2
+ivory install 8.3
+ivory install 8.2
 ```
 
 This calls `IPhpInstaller.InstallAsync`, which:
 
-* Looks up the version in `~/.tusk/php-versions.json` (`PhpVersionsManifest`).
+* Looks up the version in `~/.ivory/php-versions.json` (`PhpVersionsManifest`).
 * Downloads the appropriate artifact.
 * Verifies SHA256.
-* Extracts it into `~/.tusk/versions/<platform>/<version>`.
+* Extracts it into `~/.ivory/versions/<platform>/<version>`.
 
 ---
 
-### `tusk list` / `tusk ls`
+### `ivory list` / `ivory ls`
 
 List installed PHP versions:
 
 ```bash
-tusk list
+ivory list
 # or
-tusk ls
+ivory ls
 ```
 
 Uses `IPhpInstaller.ListInstalledAsync()` and prints out versions in order.
 
 ---
 
-### `tusk php`
+### `ivory php`
 
-Run `php` through Tusk with a specific PHP version (or project/global default).
+Run `php` through Ivory with a specific PHP version (or project/global default).
 
 ```bash
-tusk php [--php <version>] [--] [args...]
+ivory php [--php <version>] [--] [args...]
 ```
 
 Examples:
 
 ```bash
-tusk php -- -v
-tusk php --php 8.3 -- -v
-tusk php --php 8.3 -- -r "echo 'Hello from Tusk';"
+ivory php -- -v
+ivory php --php 8.3 -- -v
+ivory php --php 8.3 -- -r "echo 'Hello from Ivory';"
 ```
 
 This calls `IPhpRuntimeService.RunPhpAsync` with `null` script path and just forwards your arguments.
 
 ---
 
-### `tusk run`
+### `ivory run`
 
-Run a named script from `tusk.json` or a direct PHP file.
+Run a named script from `ivory.json` or a direct PHP file.
 
 ```bash
-tusk run <script-or-file> [--php <version>] [--] [extra-args...]
+ivory run <script-or-file> [--php <version>] [--] [extra-args...]
 ```
 
 Behavior:
 
-1. Tusk loads the nearest `tusk.json` via `IProjectConfigProvider`.
+1. Ivory loads the nearest `ivory.json` via `IProjectConfigProvider`.
 2. If `<script-or-file>` matches a script name in `scripts`, it:
 
    * Builds the PHP command from `php`, `phpFile`, `phpArgs`, and `args`.
@@ -268,19 +268,19 @@ Behavior:
 Examples:
 
 ```bash
-tusk run serve
-tusk run console -- migrate
-tusk run public/index.php --php 8.3
+ivory run serve
+ivory run console -- migrate
+ivory run public/index.php --php 8.3
 ```
 
 ---
 
-### `tusk scripts`
+### `ivory scripts`
 
-List available scripts from `tusk.json`:
+List available scripts from `ivory.json`:
 
 ```bash
-tusk scripts
+ivory scripts
 ```
 
 Shows:
@@ -291,57 +291,57 @@ Shows:
 
 ---
 
-### `tusk use`
+### `ivory use`
 
-Set the **project-local** PHP version by writing `.tusk.php-version` in the current directory:
+Set the **project-local** PHP version by writing `.ivory.php-version` in the current directory:
 
 ```bash
-tusk use <version>
+ivory use <version>
 ```
 
 Example:
 
 ```bash
-tusk use 8.3
+ivory use 8.3
 ```
 
-Tusk will prefer this version when running commands inside this project directory.
+Ivory will prefer this version when running commands inside this project directory.
 
 ---
 
-### `tusk default`
+### `ivory default`
 
-Set the **default / global** PHP version (e.g. stored in `~/.tusk/config.json` or equivalent):
+Set the **default / global** PHP version (e.g. stored in `~/.ivory/config.json` or equivalent):
 
 ```bash
-tusk default <version>
+ivory default <version>
 ```
 
 Example:
 
 ```bash
-tusk default 8.2
+ivory default 8.2
 ```
 
-Used when there is no `.tusk.php-version` and no `php.version` in `tusk.json`.
+Used when there is no `.ivory.php-version` and no `php.version` in `ivory.json`.
 
 ---
 
-### `tusk composer`
+### `ivory composer`
 
-Run Composer through Tusk.
+Run Composer through Ivory.
 
 ```bash
-tusk composer [--php <version>] [--] [args...]
+ivory composer [--php <version>] [--] [args...]
 ```
 
 Examples:
 
 ```bash
-tusk composer install
-tusk composer update
-tusk composer run-script test
-tusk composer --php 8.3 -- install
+ivory composer install
+ivory composer update
+ivory composer run-script test
+ivory composer --php 8.3 -- install
 ```
 
 Internally, `IComposerService`:
@@ -352,92 +352,92 @@ Internally, `IComposerService`:
 
 ---
 
-### `tusk isolate`
+### `ivory isolate`
 
-Create a per-project PHP home in `.tusk/php/` with its own `php.ini` and `conf.d/` directory for extension ini files.
+Create a per-project PHP home in `.ivory/php/` with its own `php.ini` and `conf.d/` directory for extension ini files.
 
 ```bash
-tusk isolate
+ivory isolate
 ```
 
-After running this once in a project, Tusk will automatically set `PHPRC` and `PHP_INI_SCAN_DIR` to use your local `php.ini` and `conf.d/` when executing PHP/Composer through Tusk, keeping settings and extensions from bleeding across projects.
+After running this once in a project, Ivory will automatically set `PHPRC` and `PHP_INI_SCAN_DIR` to use your local `php.ini` and `conf.d/` when executing PHP/Composer through Ivory, keeping settings and extensions from bleeding across projects.
 
 ---
 
-### `tusk scaffold:ci`
+### `ivory scaffold:ci`
 
-Generate CI templates wired to Tusk for GitHub Actions or GitLab CI.
+Generate CI templates wired to Ivory for GitHub Actions or GitLab CI.
 
 ```bash
-tusk scaffold:ci              # GitHub by default
-tusk scaffold:ci --target gitlab
-tusk scaffold:ci --target both --force
+ivory scaffold:ci              # GitHub by default
+ivory scaffold:ci --target gitlab
+ivory scaffold:ci --target both --force
 ```
 
-Creates `.github/workflows/tusk-ci.yml` and/or `.gitlab-ci.yml` running `dotnet build` plus a Tusk doctor + PHP version check.
+Creates `.github/workflows/ivory-ci.yml` and/or `.gitlab-ci.yml` running `dotnet build` plus a Ivory doctor + PHP version check.
 
 ---
 
-### `tusk scaffold:docker`
+### `ivory scaffold:docker`
 
 Generate a Dockerfile and docker-compose.yml using the resolved PHP version.
 
 ```bash
-tusk scaffold:docker
+ivory scaffold:docker
 ```
 
 Produces a simple `Dockerfile` (php:<version>-cli) and `docker-compose.yml` exposing port 8000; extend to install needed PHP extensions.
 
 ---
 
-### `tusk completion`
+### `ivory completion`
 
-Generate a shell completion script (bash, zsh, fish, PowerShell) that includes commands, tusk.json script names, and PHP versions/aliases from your manifest.
+Generate a shell completion script (bash, zsh, fish, PowerShell) that includes commands, ivory.json script names, and PHP versions/aliases from your manifest.
 
 ```bash
-tusk completion bash     # bash
-tusk completion zsh      # zsh
-tusk completion fish     # fish
-tusk completion powershell
+ivory completion bash     # bash
+ivory completion zsh      # zsh
+ivory completion fish     # fish
+ivory completion powershell
 ```
 
-Tip: `source <(tusk completion bash)` or add to your shell init file.
+Tip: `source <(ivory completion bash)` or add to your shell init file.
 
 ---
 
-### `tusk doctor`
+### `ivory doctor`
 
-Inspect environment and show what Tusk sees:
+Inspect environment and show what Ivory sees:
 
 ```bash
-tusk doctor
+ivory doctor
 ```
 
 Typical output includes:
 
 * Current platform (`PlatformId`)
-* Home directory and `~/.tusk` layout (versions, cache, manifest path)
+* Home directory and `~/.ivory` layout (versions, cache, manifest path)
 * Installed PHP versions
 * Effective project / global PHP version
 * Locations of `composer.phar` and system `composer`
-* Whether `tusk.json` was found and where
-* Whether per-project isolation is enabled for this directory (and paths to `.tusk/php/php.ini` and `conf.d` if present)
+* Whether `ivory.json` was found and where
+* Whether per-project isolation is enabled for this directory (and paths to `.ivory/php/php.ini` and `conf.d` if present)
 
 This uses:
 
 * `IEnvironmentProbe` to find system `php`/`composer`
 * `IPhpInstaller` to inspect installed versions
 * `IComposerService` to locate Composer
-* `IProjectConfigProvider` to find `tusk.json`
+* `IProjectConfigProvider` to find `ivory.json`
 
 ---
 
 ## Data & directories
 
-Tusk stores its own data under:
+Ivory stores its own data under:
 
 ```text
-~/.tusk/
+~/.ivory/
     php-versions.json   # PhpVersionsManifest (download sources & checksums)
     versions/           # Installed PHP runtimes, per platform/version
     cache/php/          # Download cache for PHP archives
@@ -446,5 +446,6 @@ Tusk stores its own data under:
 
 Per-project data:
 
-* `tusk.json` – project configuration (PHP + scripts).
-* `.tusk.php-version` – per-project PHP version pin.
+* `ivory.json` – project configuration (PHP + scripts).
+* `.ivory.php-version` – per-project PHP version pin.
+

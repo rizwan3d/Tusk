@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Ivory.Application\Ivory.Application.csproj" />
+    <ProjectReference Include="..\Ivory.Domain\Ivory.Domain.csproj" />
+  </ItemGroup>
+</Project>

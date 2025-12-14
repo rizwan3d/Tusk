@@ -1,9 +1,9 @@
-$ErrorActionPreference = "Stop"
+﻿$ErrorActionPreference = "Stop"
 
-$installDir = Join-Path $env:LOCALAPPDATA "Tusk\bin"
-$binary = Join-Path $installDir "tusk.exe"
+$installDir = Join-Path $env:LOCALAPPDATA "Ivory\bin"
+$binary = Join-Path $installDir "iv.exe"
 
-Write-Host "Removing Tusk binary from $installDir..."
+Write-Host "Removing Ivory binary from $installDir..."
 Remove-Item -ErrorAction SilentlyContinue -Force $binary
 
 if (Test-Path $installDir) {
@@ -20,4 +20,4 @@ $updated = ($parts -join ';')
 [Environment]::SetEnvironmentVariable("Path", $updated, "User")
 
 Write-Host "Removed $installDir from user PATH."
-Write-Host "Tusk uninstalled. Open a new terminal to ensure PATH updates take effect."
+Write-Host "Ivory uninstalled. Open a new terminal to ensure PATH updates take effect."
