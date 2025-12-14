@@ -21,20 +21,20 @@ It lets you:
 - [Installation](#installation)
 - [Configuration (`ivory.json`)](#configuration-ivoryjson)
 - [Commands](#commands)
-  - [`ivory init`](#ivory-init)
-  - [`ivory install`](#ivory-install)
-  - [`ivory list`](#ivory-list)
-  - [`ivory php`](#ivory-php)
-  - [`ivory run`](#ivory-run)
-  - [`ivory scripts`](#ivory-scripts)
-  - [`ivory use`](#ivory-use)
-  - [`ivory default`](#ivory-default)
-  - [`ivory composer`](#ivory-composer)
-  - [`ivory isolate`](#ivory-isolate)
-  - [`ivory scaffold:ci`](#ivory-scaffoldci)
-  - [`ivory scaffold:docker`](#ivory-scaffolddocker)
-  - [`ivory completion`](#ivory-completion)
-  - [`ivory doctor`](#ivory-doctor)
+  - [`iv init`](#ivory-init)
+  - [`iv install`](#ivory-install)
+  - [`iv list`](#ivory-list)
+  - [`iv php`](#ivory-php)
+  - [`iv run`](#ivory-run)
+  - [`iv scripts`](#ivory-scripts)
+  - [`iv use`](#ivory-use)
+  - [`iv default`](#ivory-default)
+  - [`iv composer`](#ivory-composer)
+  - [`iv isolate`](#ivory-isolate)
+  - [`iv scaffold:ci`](#ivory-scaffoldci)
+  - [`iv scaffold:docker`](#ivory-scaffolddocker)
+  - [`iv completion`](#ivory-completion)
+  - [`iv doctor`](#ivory-doctor)
 - [Data & directories](#data--directories)
 - [License](#license)
 
@@ -45,7 +45,7 @@ It lets you:
 - **Local PHP version management**
   - Installs PHP builds under `~/.ivory/versions/<platform>/<version>`
   - Uses a JSON manifest (`~/.ivory/php-versions.json`) to know where to download PHP from
-  - `ivory install 8.3` etc.
+  - `iv install 8.3` etc.
 
 - **Project-aware PHP selection**
   - Per-project PHP version via `.ivory.php-version`
@@ -68,15 +68,6 @@ It lets you:
     - Scaffolds a basic `public/index.php` that tries to load `vendor/autoload.php`
     - Optional per-project PHP home (`.ivory/php`) to keep ini overrides local
 
----
-
-## Requirements
-
-- **.NET SDK** with support for `net10.0` (Ivory targets `net10.0` in `Ivory.csproj`).
-- Supported runtime platforms:
-  - Windows x64
-  - Linux x64
-  - macOS arm64 (Apple Silicon)
 ---
 
 ## Installation
@@ -175,12 +166,12 @@ Internally, these are represented by `IvoryConfig` and `IvoryConfig.IvoryScript`
 
 ## Commands
 
-### `ivory init`
+### `iv init`
 
 Create a starter `ivory.json` for the current project and scaffold `public/index.php` if it doesn’t exist.
 
 ```bash
-ivory init [--framework <Generic|Laravel|Symfony>] [--php <version>] [--force]
+iv init [--framework <Generic|Laravel|Symfony>] [--php <version>] [--force]
 ```
 
 * `--framework` – choose a preset (Generic, Laravel, Symfony).
@@ -196,14 +187,14 @@ This uses `IPhpVersionResolver`, `IvoryConfigSerializer` and `IPublicIndexScaffo
 Install a PHP runtime for the current platform.
 
 ```bash
-ivory install <version>
+iv install <version>
 ```
 
 Examples:
 
 ```bash
-ivory install 8.3
-ivory install 8.2
+iv install 8.3
+iv install 8.2
 ```
 
 This calls `IPhpInstaller.InstallAsync`, which:
@@ -220,9 +211,9 @@ This calls `IPhpInstaller.InstallAsync`, which:
 List installed PHP versions:
 
 ```bash
-ivory list
+iv list
 # or
-ivory ls
+iv ls
 ```
 
 Uses `IPhpInstaller.ListInstalledAsync()` and prints out versions in order.
@@ -234,15 +225,15 @@ Uses `IPhpInstaller.ListInstalledAsync()` and prints out versions in order.
 Run `php` through Ivory with a specific PHP version (or project/global default).
 
 ```bash
-ivory php [--php <version>] [--] [args...]
+iv php [--php <version>] [--] [args...]
 ```
 
 Examples:
 
 ```bash
-ivory php -- -v
-ivory php --php 8.3 -- -v
-ivory php --php 8.3 -- -r "echo 'Hello from Ivory';"
+iv php -- -v
+iv php --php 8.3 -- -v
+iv php --php 8.3 -- -r "echo 'Hello from Ivory';"
 ```
 
 This calls `IPhpRuntimeService.RunPhpAsync` with `null` script path and just forwards your arguments.
@@ -254,7 +245,7 @@ This calls `IPhpRuntimeService.RunPhpAsync` with `null` script path and just for
 Run a named script from `ivory.json` or a direct PHP file.
 
 ```bash
-ivory run <script-or-file> [--php <version>] [--] [extra-args...]
+iv run <script-or-file> [--php <version>] [--] [extra-args...]
 ```
 
 Behavior:
@@ -268,9 +259,9 @@ Behavior:
 Examples:
 
 ```bash
-ivory run serve
-ivory run console -- migrate
-ivory run public/index.php --php 8.3
+iv run serve
+iv run console -- migrate
+iv run public/index.php --php 8.3
 ```
 
 ---
@@ -280,7 +271,7 @@ ivory run public/index.php --php 8.3
 List available scripts from `ivory.json`:
 
 ```bash
-ivory scripts
+iv scripts
 ```
 
 Shows:
@@ -296,13 +287,13 @@ Shows:
 Set the **project-local** PHP version by writing `.ivory.php-version` in the current directory:
 
 ```bash
-ivory use <version>
+iv use <version>
 ```
 
 Example:
 
 ```bash
-ivory use 8.3
+iv use 8.3
 ```
 
 Ivory will prefer this version when running commands inside this project directory.
@@ -314,13 +305,13 @@ Ivory will prefer this version when running commands inside this project directo
 Set the **default / global** PHP version (e.g. stored in `~/.ivory/config.json` or equivalent):
 
 ```bash
-ivory default <version>
+iv default <version>
 ```
 
 Example:
 
 ```bash
-ivory default 8.2
+iv default 8.2
 ```
 
 Used when there is no `.ivory.php-version` and no `php.version` in `ivory.json`.
@@ -332,16 +323,16 @@ Used when there is no `.ivory.php-version` and no `php.version` in `ivory.json`.
 Run Composer through Ivory.
 
 ```bash
-ivory composer [--php <version>] [--] [args...]
+iv composer [--php <version>] [--] [args...]
 ```
 
 Examples:
 
 ```bash
-ivory composer install
-ivory composer update
-ivory composer run-script test
-ivory composer --php 8.3 -- install
+iv composer install
+iv composer update
+iv composer run-script test
+iv composer --php 8.3 -- install
 ```
 
 Internally, `IComposerService`:
@@ -357,7 +348,7 @@ Internally, `IComposerService`:
 Create a per-project PHP home in `.ivory/php/` with its own `php.ini` and `conf.d/` directory for extension ini files.
 
 ```bash
-ivory isolate
+iv isolate
 ```
 
 After running this once in a project, Ivory will automatically set `PHPRC` and `PHP_INI_SCAN_DIR` to use your local `php.ini` and `conf.d/` when executing PHP/Composer through Ivory, keeping settings and extensions from bleeding across projects.
@@ -369,12 +360,15 @@ After running this once in a project, Ivory will automatically set `PHPRC` and `
 Generate CI templates wired to Ivory for GitHub Actions or GitLab CI.
 
 ```bash
-ivory scaffold:ci              # GitHub by default
-ivory scaffold:ci --target gitlab
-ivory scaffold:ci --target both --force
+iv scaffold:ci              # GitHub by default
+iv scaffold:ci --target gitlab
+iv scaffold:ci --target both --force
 ```
 
 Creates `.github/workflows/ivory-ci.yml` and/or `.gitlab-ci.yml` running `dotnet build` plus a Ivory doctor + PHP version check.
+
+- Uses the resolved PHP version (project `.ivory.php-version` → `ivory.json` `php.version` → global default); when resolution is `system`, the workflow pins `8.3` so CI has a concrete PHP tag.
+- Pass `--force` to overwrite existing files.
 
 ---
 
@@ -383,10 +377,13 @@ Creates `.github/workflows/ivory-ci.yml` and/or `.gitlab-ci.yml` running `dotnet
 Generate a Dockerfile and docker-compose.yml using the resolved PHP version.
 
 ```bash
-ivory scaffold:docker
+iv scaffold:docker
 ```
 
 Produces a simple `Dockerfile` (php:<version>-cli) and `docker-compose.yml` exposing port 8000; extend to install needed PHP extensions.
+
+- The PHP tag is taken from the resolved Ivory PHP version; if it would be `system`, Ivory pins `8.3` for the Docker base image.
+- Use `--force` to overwrite existing `Dockerfile` / `docker-compose.yml`.
 
 ---
 
@@ -395,10 +392,10 @@ Produces a simple `Dockerfile` (php:<version>-cli) and `docker-compose.yml` expo
 Generate a shell completion script (bash, zsh, fish, PowerShell) that includes commands, ivory.json script names, and PHP versions/aliases from your manifest.
 
 ```bash
-ivory completion bash     # bash
-ivory completion zsh      # zsh
-ivory completion fish     # fish
-ivory completion powershell
+iv completion bash     # bash
+iv completion zsh      # zsh
+iv completion fish     # fish
+iv completion powershell
 ```
 
 Tip: `source <(ivory completion bash)` or add to your shell init file.
@@ -410,7 +407,7 @@ Tip: `source <(ivory completion bash)` or add to your shell init file.
 Inspect environment and show what Ivory sees:
 
 ```bash
-ivory doctor
+iv doctor
 ```
 
 Typical output includes:
@@ -448,4 +445,3 @@ Per-project data:
 
 * `ivory.json` – project configuration (PHP + scripts).
 * `.ivory.php-version` – per-project PHP version pin.
-
