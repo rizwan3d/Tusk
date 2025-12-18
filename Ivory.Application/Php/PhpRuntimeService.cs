@@ -63,7 +63,25 @@ public class PhpRuntimeService(
             phpPath = await EnsureInstalledPhpAsync(version, cancellationToken).ConfigureAwait(false);
         }
 
+        string? extensionDirForIni = null;
+        try
+        {
+            var phpDir = Path.GetDirectoryName(phpPath);
+            if (!string.IsNullOrWhiteSpace(phpDir))
+            {
+                var extCandidate = Path.Combine(phpDir, "ext");
+                if (Directory.Exists(extCandidate))
+                {
+                    extensionDirForIni = extCandidate;
+                }
+            }
+        }
+        catch
+        {
+        }
+
         var finalArgs = new List<string>();
+        TryAddExtensionDirArg(phpPath, args, finalArgs);
 
         if (!string.IsNullOrEmpty(scriptOrCommand))
         {
@@ -80,32 +98,7 @@ public class PhpRuntimeService(
             : new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
 
         env["IVORY_PHP"] = phpPath;
-
-        try
-        {
-            var phpDir = Path.GetDirectoryName(phpPath);
-            if (!string.IsNullOrWhiteSpace(phpDir))
-            {
-                var currentPath = System.Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
-                var separator = OperatingSystem.IsWindows() ? ';' : ':';
-
-                bool alreadyPresent = currentPath
-                    .Split([separator], StringSplitOptions.RemoveEmptyEntries)
-                    .Any(p => string.Equals(p.Trim(), phpDir, StringComparison.OrdinalIgnoreCase));
-
-                if (!alreadyPresent)
-                {
-                    var newPath = string.IsNullOrEmpty(currentPath)
-                        ? phpDir
-                        : phpDir + separator + currentPath;
-
-                    env["PATH"] = newPath;
-                }
-            }
-        }
-        catch
-        {
-        }
+        ConfigurePhpEnvironment(phpPath, env);
 
         var projectHome = await _projectPhpHomeProvider
             .TryGetExistingAsync(System.Environment.CurrentDirectory, cancellationToken)
@@ -113,13 +106,22 @@ public class PhpRuntimeService(
 
         if (projectHome is not null)
         {
-            env["PHPRC"] = projectHome.IniPath;
+            env["PHPRC"] = Path.GetDirectoryName(projectHome.IniPath) ?? projectHome.IniPath;
             env["PHP_INI_SCAN_DIR"] = projectHome.ExtensionsPath;
             env["IVORY_PHP_HOME"] = projectHome.HomePath;
             if (projectHome.ProjectRoot is not null)
             {
                 env["IVORY_PROJECT_ROOT"] = projectHome.ProjectRoot;
             }
+
+            if (extensionDirForIni is not null)
+            {
+                WriteExtensionDirIni(projectHome.ExtensionsPath, extensionDirForIni);
+            }
+        }
+        else
+        {
+            env.TryAdd("IVORY_PROJECT_ROOT", System.Environment.CurrentDirectory);
         }
 
         string workingDir = System.Environment.CurrentDirectory;
@@ -134,6 +136,37 @@ public class PhpRuntimeService(
             cancellationToken: cancellationToken).ConfigureAwait(false);
     }
 
+    private static void TryAddExtensionDirArg(string phpPath, string[]? args, List<string> targetArgs)
+    {
+        try
+        {
+            var phpDir = Path.GetDirectoryName(phpPath);
+            if (string.IsNullOrWhiteSpace(phpDir))
+            {
+                return;
+            }
+
+            var extDir = Path.Combine(phpDir, "ext");
+            if (!Directory.Exists(extDir))
+            {
+                return;
+            }
+
+            if (args is not null && args.Any(a => a.Contains("extension_dir", StringComparison.OrdinalIgnoreCase)))
+            {
+                return;
+            }
+
+            string extensionArg = $"extension_dir=\"{extDir}\"";
+            targetArgs.Add("-d");
+            targetArgs.Add(extensionArg);
+        }
+        catch
+        {
+            // Ignore optional extension_dir auto-injection failures.
+        }
+    }
+
     private async Task<string> EnsureInstalledPhpAsync(PhpVersion version, CancellationToken cancellationToken)
     {
         try
@@ -145,6 +178,79 @@ public class PhpRuntimeService(
             Console.WriteLine($"[ivory] PHP {version.Value} is not installed. Installing now...");
             await _installer.InstallAsync(version, cancellationToken: cancellationToken).ConfigureAwait(false);
             return await _installer.GetInstalledPathAsync(version, cancellationToken).ConfigureAwait(false);
+        }
+    }
+
+    private static void ConfigurePhpEnvironment(string phpPath, IDictionary<string, string?> env)
+    {
+        try
+        {
+            var phpDir = Path.GetDirectoryName(phpPath);
+            if (string.IsNullOrWhiteSpace(phpDir))
+            {
+                return;
+            }
+
+            var extensionDir = Path.Combine(phpDir, "ext");
+            if (Directory.Exists(extensionDir))
+            {
+                env["PHP_EXTENSION_DIR"] = extensionDir;
+            }
+
+            // Ensure a PHP ini scan directory exists with an extension_dir override so child PHP processes inherit it.
+            var defaultScanDir = Path.Combine(phpDir, "conf.d");
+            Directory.CreateDirectory(defaultScanDir);
+            WriteExtensionDirIni(defaultScanDir, extensionDir);
+
+            env.TryAdd("PHP_INI_SCAN_DIR", defaultScanDir);
+
+            var phpIniPath = Path.Combine(phpDir, "php.ini");
+            var phpIniDir = Path.GetDirectoryName(phpIniPath);
+            if (!string.IsNullOrWhiteSpace(phpIniDir))
+            {
+                env.TryAdd("PHPRC", phpIniDir);
+            }
+
+            var separator = OperatingSystem.IsWindows() ? ';' : ':';
+            var currentPath = env.TryGetValue("PATH", out var envPath) && !string.IsNullOrWhiteSpace(envPath)
+                ? envPath!
+                : System.Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+
+            bool alreadyPresent = currentPath
+                .Split([separator], StringSplitOptions.RemoveEmptyEntries)
+                .Any(p => string.Equals(p.Trim(), phpDir, StringComparison.OrdinalIgnoreCase));
+
+            var newPath = alreadyPresent
+                ? currentPath
+                : (string.IsNullOrEmpty(currentPath) ? phpDir : phpDir + separator + currentPath);
+
+            env["PATH"] = newPath;
+        }
+        catch
+        {
+            // Best-effort environment setup.
+        }
+    }
+
+    private static void WriteExtensionDirIni(string scanDir, string extensionDir)
+    {
+        if (!Directory.Exists(scanDir) || string.IsNullOrWhiteSpace(extensionDir))
+        {
+            return;
+        }
+
+        try
+        {
+            var iniPath = Path.Combine(scanDir, "99-ivory-extension-dir.ini");
+            var desired = $"extension_dir=\"{extensionDir}\"{System.Environment.NewLine}";
+            if (!File.Exists(iniPath) || File.ReadAllText(iniPath) != desired)
+            {
+                File.WriteAllText(iniPath, desired);
+            }
+        }
+        catch
+        {
+            // Ignore failures; main process still adds -d extension_dir when possible.
         }
     }
 }
