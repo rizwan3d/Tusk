@@ -63,6 +63,7 @@ public class PhpRuntimeService(
             phpPath = await EnsureInstalledPhpAsync(version, cancellationToken).ConfigureAwait(false);
         }
 
+        var iniOverride = ResolveIniOverride(phpPath);
         string? extensionDirForIni = null;
         try
         {
@@ -81,6 +82,11 @@ public class PhpRuntimeService(
         }
 
         var finalArgs = new List<string>();
+        if (!string.IsNullOrWhiteSpace(iniOverride))
+        {
+            finalArgs.Add("-c");
+            finalArgs.Add(iniOverride!);
+        }
         TryAddExtensionDirArg(phpPath, args, finalArgs);
 
         if (!string.IsNullOrEmpty(scriptOrCommand))
@@ -230,6 +236,41 @@ public class PhpRuntimeService(
         {
             // Best-effort environment setup.
         }
+    }
+
+    private static string? ResolveIniOverride(string phpPath)
+    {
+        try
+        {
+            var phpDir = Path.GetDirectoryName(phpPath);
+            if (string.IsNullOrWhiteSpace(phpDir))
+            {
+                return null;
+            }
+
+            string primary = Path.Combine(phpDir, "php.ini");
+            if (File.Exists(primary))
+            {
+                return primary;
+            }
+
+            string dev = Path.Combine(phpDir, "php.ini-development");
+            if (File.Exists(dev))
+            {
+                return dev;
+            }
+
+            string prod = Path.Combine(phpDir, "php.ini-production");
+            if (File.Exists(prod))
+            {
+                return prod;
+            }
+        }
+        catch
+        {
+        }
+
+        return null;
     }
 
     private static void WriteExtensionDirIni(string scanDir, string extensionDir)
