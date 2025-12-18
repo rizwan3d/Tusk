@@ -4,6 +4,7 @@ using System.CommandLine;
 using System.Diagnostics.CodeAnalysis;
 using Ivory.Application.Composer;
 using Ivory.Application.Config;
+using Ivory.Application.Deploy;
 using Ivory.Application.Environment;
 using Ivory.Application.Php;
 using Ivory.Application.Runtime;
@@ -12,6 +13,7 @@ using Ivory.Application.Diagnostics;
 using Ivory.Cli;
 using Ivory.Infrastructure.Composer;
 using Ivory.Infrastructure.Config;
+using Ivory.Infrastructure.Deploy;
 using Ivory.Infrastructure.Environment;
 using Ivory.Infrastructure.Php;
 using Ivory.Infrastructure.Runtime;
@@ -82,6 +84,7 @@ internal static class Program
         services.AddSingleton<IProjectPhpHomeProvider, ProjectPhpHomeProvider>();
         services.AddSingleton<IAppLogger, AppLogger>();
         services.AddSingleton<ITelemetryService, TelemetryService>();
+        services.AddSingleton<IDeployApiClient, DeployApiClient>();
+        services.AddSingleton<IDeployConfigStore, DeployConfigStore>();
     }
 }
-

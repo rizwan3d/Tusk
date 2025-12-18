@@ -7,6 +7,7 @@ using Ivory.Application.Environment;
 using Ivory.Application.Diagnostics;
 using Ivory.Application.Php;
 using Ivory.Application.Scaffolding;
+using Ivory.Application.Deploy;
 using Ivory.Domain.Php;
 using Ivory.Infrastructure.Php;
 using Ivory.Cli.Execution;
@@ -30,6 +31,8 @@ internal static class CommandLineFactory
         var manifest = services.GetRequiredService<PhpVersionsManifest>();
         var logger = services.GetRequiredService<IAppLogger>();
         var telemetry = services.GetRequiredService<ITelemetryService>();
+        var deployClient = services.GetRequiredService<IDeployApiClient>();
+        var deployConfigStore = services.GetRequiredService<IDeployConfigStore>();
         CommandExecutor.Configure(logger, telemetry);
 
         PhpVersion phpVersion = await resolver.ResolveForCurrentDirectoryAsync().ConfigureAwait(false);
@@ -62,8 +65,17 @@ internal static class CommandLineFactory
         rootCommand.Subcommands.Add(CompletionCommand.Create(rootCommand, configProvider, manifest));
         rootCommand.Subcommands.Add(ScaffoldCiCommand.Create(resolver));
         rootCommand.Subcommands.Add(ScaffoldDockerCommand.Create(resolver));
+        rootCommand.Subcommands.Add(RegisterCommand.Create(deployClient));
+        rootCommand.Subcommands.Add(LoginCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(DeployCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(LogsCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(EnvCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(DomainsCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(ConfigCommand.Create(deployClient, deployConfigStore, configProvider));
+        rootCommand.Subcommands.Add(RollbackCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(OrgsCommand.Create(deployClient, deployConfigStore));
+        rootCommand.Subcommands.Add(ProjectsCommand.Create(deployClient, deployConfigStore));
 
         return rootCommand;
     }
 }
-
