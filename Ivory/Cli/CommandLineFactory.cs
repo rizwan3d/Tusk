@@ -61,7 +61,7 @@ internal static class CommandLineFactory
         rootCommand.Subcommands.Add(UseCommand.Create());
         rootCommand.Subcommands.Add(DefaultCommand.Create(resolver));
         rootCommand.Subcommands.Add(PhpCommand.Create(runtime, phpVersionOption));
-        rootCommand.Subcommands.Add(InitCommand.Create(resolver, phpVersionOption, publicIndexScaffolder));
+        rootCommand.Subcommands.Add(InitCommand.Create(resolver, phpVersionOption, publicIndexScaffolder, composerService));
         rootCommand.Subcommands.Add(ComposerCommand.Create(composerService, phpVersionOption, configProvider));
         rootCommand.Subcommands.Add(LaravelCommand.Create(laravelService, phpVersionOption));
         rootCommand.Subcommands.Add(DoctorCommand.Create(installer, resolver, phpVersionOption, configProvider, composerService, environmentProbe, projectPhpHomeProvider));
