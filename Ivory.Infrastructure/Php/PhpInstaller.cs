@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using Ivory.Application.Php;
 using Ivory.Domain.Php;
 using Ivory.Domain.Runtime;
+using System.Linq;
 
 namespace Ivory.Infrastructure.Php;
 
@@ -113,6 +114,19 @@ public class PhpInstaller : IPhpInstaller, IDisposable
 
         if (!File.Exists(phpPath))
         {
+            var installed = ListInstalledAsync(cancellationToken)
+                .GetAwaiter()
+                .GetResult();
+            var bestMatch = FindBestInstalledMatch(installed, version.Value);
+            if (bestMatch is not null)
+            {
+                string bestPath = Path.Combine(GetInstallDir(bestMatch), phpName);
+                if (File.Exists(bestPath))
+                {
+                    return Task.FromResult(bestPath);
+                }
+            }
+
             throw new FileNotFoundException($"PHP binary not found at {phpPath}. Is version '{version.Value}' installed?");
         }
 
@@ -206,6 +220,59 @@ public class PhpInstaller : IPhpInstaller, IDisposable
         }
 
         return removed;
+    }
+
+    private static string? FindBestInstalledMatch(IReadOnlyList<PhpVersion> installed, string requested)
+    {
+        var matches = installed
+            .Where(v =>
+                string.Equals(v.Value, requested, StringComparison.OrdinalIgnoreCase) ||
+                v.Value.StartsWith(requested + ".", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (matches.Count == 0)
+        {
+            return null;
+        }
+
+        return matches
+            .OrderByDescending(v => ParseVersionParts(v.Value), VersionPartComparer.Instance)
+            .Select(v => v.Value)
+            .FirstOrDefault();
+    }
+
+    private static IReadOnlyList<int> ParseVersionParts(string version)
+    {
+        return version
+            .Split('.', StringSplitOptions.RemoveEmptyEntries)
+            .Select(segment =>
+            {
+                var digits = new string(segment.TakeWhile(char.IsDigit).ToArray());
+                return int.TryParse(digits, out var value) ? value : 0;
+            })
+            .ToArray();
+    }
+
+    private sealed class VersionPartComparer : IComparer<IReadOnlyList<int>>
+    {
+        public static VersionPartComparer Instance { get; } = new();
+
+        public int Compare(IReadOnlyList<int> x, IReadOnlyList<int> y)
+        {
+            int max = Math.Max(x.Count, y.Count);
+            for (int i = 0; i < max; i++)
+            {
+                int xv = i < x.Count ? x[i] : 0;
+                int yv = i < y.Count ? y[i] : 0;
+                int cmp = xv.CompareTo(yv);
+                if (cmp != 0)
+                {
+                    return cmp;
+                }
+            }
+
+            return 0;
+        }
     }
 
     private string GetInstallDir(string exactVersion)

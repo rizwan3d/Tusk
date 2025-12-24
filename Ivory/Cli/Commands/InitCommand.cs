@@ -1,7 +1,7 @@
 ﻿using System.CommandLine;
 using System.CommandLine.Invocation;
-using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using Ivory.Application.Composer;
 using Ivory.Application.Php;
 using Ivory.Application.Scaffolding;
@@ -93,6 +93,10 @@ internal static class InitCommand
 
                 string phpVersionSpec = parseResult.GetValue(phpVersionOption) ?? string.Empty;
                 var detectedVersion = await VersionHelpers.DetectPhpVersionFromPhpVAsync(resolver, phpVersionSpec).ConfigureAwait(false);
+                if (string.IsNullOrWhiteSpace(detectedVersion) && composerExists)
+                {
+                    detectedVersion = TryReadPhpVersionFromComposer(composerPath);
+                }
                 if (!string.IsNullOrWhiteSpace(detectedVersion))
                 {
                     config.Php.Version = detectedVersion;
@@ -104,7 +108,7 @@ internal static class InitCommand
                 }
 
                 string ivoryJson = File.Exists(composerPath)
-                    ? await CreateIvoryJsonFromComposerAsync(composerPath, config, composerService, cwd).ConfigureAwait(false)
+                    ? await CreateIvoryJsonFromComposerAsync(config, composerService, cwd).ConfigureAwait(false)
                     : IvoryConfigSerialization.SerializeIvoryConfig(config);
 
                 await File.WriteAllTextAsync(ivoryPath, ivoryJson).ConfigureAwait(false);
@@ -126,70 +130,9 @@ internal static class InitCommand
         return command;
     }
 
-    private static async Task<string> CreateIvoryJsonFromComposerAsync(string composerPath, IvoryConfig config, IComposerService composerService, string cwd)
+    private static async Task<string> CreateIvoryJsonFromComposerAsync(IvoryConfig config, IComposerService composerService, string cwd)
     {
-        using var composerDoc = JsonDocument.Parse(await File.ReadAllTextAsync(composerPath).ConfigureAwait(false));
-        var root = composerDoc.RootElement;
-
-        using var stream = new MemoryStream();
-        using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions
-        {
-            Indented = true,
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        });
-        writer.WriteStartObject();
-
-        bool hasExtra = false;
-        JsonElement extraElement = default;
-
-        if (root.TryGetProperty("extra", out var extraElem) &&
-            extraElem.ValueKind == JsonValueKind.Object)
-        {
-            hasExtra = true;
-            extraElement = extraElem;
-        }
-
-        foreach (var prop in root.EnumerateObject())
-        {
-            if (prop.NameEquals("extra") && hasExtra)
-            {
-                writer.WritePropertyName("extra");
-                writer.WriteStartObject();
-
-                foreach (var extraProp in extraElement.EnumerateObject())
-                {
-                    if (extraProp.NameEquals("ivory"))
-                        continue;
-
-                    writer.WritePropertyName(extraProp.Name);
-                    extraProp.Value.WriteTo(writer);
-                }
-
-                writer.WritePropertyName("ivory");
-                IvoryConfigSerialization.WriteIvoryConfigObject(writer, config);
-
-                writer.WriteEndObject();
-            }
-            else
-            {
-                writer.WritePropertyName(prop.Name);
-                prop.Value.WriteTo(writer);
-            }
-        }
-
-        if (!hasExtra)
-        {
-            writer.WritePropertyName("extra");
-            writer.WriteStartObject();
-            writer.WritePropertyName("ivory");
-            IvoryConfigSerialization.WriteIvoryConfigObject(writer, config);
-            writer.WriteEndObject();
-        }
-
-        writer.WriteEndObject();
-        await writer.FlushAsync().ConfigureAwait(false);
-
-        var json = Encoding.UTF8.GetString(stream.ToArray());
+        var json = IvoryConfigSerialization.SerializeIvoryConfig(config);
 
         // If composer.json exists, install dependencies via Composer after writing ivory.json.
         var exit = await composerService.RunComposerAsync(
@@ -225,6 +168,65 @@ internal static class InitCommand
         {
             throw new IvoryCliException("composer init failed; cannot create ivory.json without composer.json");
         }
+    }
+
+    private static string? TryReadPhpVersionFromComposer(string composerPath)
+    {
+        try
+        {
+            using var composerDoc = JsonDocument.Parse(File.ReadAllText(composerPath));
+            var root = composerDoc.RootElement;
+
+            if (root.TryGetProperty("config", out var configElem) &&
+                configElem.ValueKind == JsonValueKind.Object &&
+                configElem.TryGetProperty("platform", out var platformElem) &&
+                platformElem.ValueKind == JsonValueKind.Object &&
+                platformElem.TryGetProperty("php", out var platformPhp) &&
+                platformPhp.ValueKind == JsonValueKind.String)
+            {
+                var spec = platformPhp.GetString();
+                if (TryParseComposerPhpSpec(spec, out var version))
+                {
+                    return version;
+                }
+            }
+
+            if (root.TryGetProperty("require", out var requireElem) &&
+                requireElem.ValueKind == JsonValueKind.Object &&
+                requireElem.TryGetProperty("php", out var requirePhp) &&
+                requirePhp.ValueKind == JsonValueKind.String)
+            {
+                var spec = requirePhp.GetString();
+                if (TryParseComposerPhpSpec(spec, out var version))
+                {
+                    return version;
+                }
+            }
+        }
+        catch
+        {
+            // Best-effort composer fallback.
+        }
+
+        return null;
+    }
+
+    private static bool TryParseComposerPhpSpec(string? spec, out string version)
+    {
+        version = string.Empty;
+        if (string.IsNullOrWhiteSpace(spec))
+        {
+            return false;
+        }
+
+        var match = Regex.Match(spec, @"(?<v>\d+(\.\d+){0,2})");
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        version = match.Groups["v"].Value;
+        return !string.IsNullOrWhiteSpace(version);
     }
 
     private static string SanitizeName(string? name)
