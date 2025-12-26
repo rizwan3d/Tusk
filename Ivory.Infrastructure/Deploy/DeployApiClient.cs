@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -18,39 +19,29 @@ public sealed class DeployApiClient : IDeployApiClient
         _httpClientFactory = httpClientFactory;
     }
 
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase, allowIntegerValues: true) },
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-    };
-
-    private readonly JsonSerializerOptions _jsonOptionsNoEnum = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-    };
-
     public Task<LoginResult> LoginAsync(DeploySession session, string? tokenName, CancellationToken cancellationToken = default)
     {
         return SendAsync<LoginResult>(
             session,
             HttpMethod.Post,
             "/cli/login",
-            new { name = tokenName },
-            cancellationToken);
+            new LoginRequest { Name = tokenName },
+            GetTypeInfo<LoginResult>(),
+            cancellationToken,
+            payloadTypeInfo: GetTypeInfo<LoginRequest>());
     }
 
-    public Task<IReadOnlyList<OrgSummary>> GetOrgsAsync(DeploySession session, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<OrgSummary>> GetOrgsAsync(DeploySession session, CancellationToken cancellationToken = default)
     {
-        return SendAsync<IReadOnlyList<OrgSummary>>(
+        var result = await SendAsync<List<OrgSummary>>(
             session,
             HttpMethod.Get,
             "/orgs",
             null,
-            cancellationToken);
+            GetTypeInfo<List<OrgSummary>>(),
+            cancellationToken).ConfigureAwait(false);
+
+        return result;
     }
 
     public Task<OrgSummary> CreateOrgAsync(DeploySession session, string name, CancellationToken cancellationToken = default)
@@ -59,19 +50,24 @@ public sealed class DeployApiClient : IDeployApiClient
             session,
             HttpMethod.Post,
             "/orgs",
-            new { name },
-            cancellationToken);
+            new CreateOrgRequest { Name = name },
+            GetTypeInfo<OrgSummary>(),
+            cancellationToken,
+            payloadTypeInfo: GetTypeInfo<CreateOrgRequest>());
     }
 
-    public Task<IReadOnlyList<ProjectSummary>> GetProjectsAsync(DeploySession session, string orgName, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ProjectSummary>> GetProjectsAsync(DeploySession session, string orgName, CancellationToken cancellationToken = default)
     {
         var org = EnsureOrg(orgName);
-        return SendAsync<IReadOnlyList<ProjectSummary>>(
+        var result = await SendAsync<List<ProjectSummary>>(
             session,
             HttpMethod.Get,
             $"/orgs/{Segment(org)}/projects",
             null,
-            cancellationToken);
+            GetTypeInfo<List<ProjectSummary>>(),
+            cancellationToken).ConfigureAwait(false);
+
+        return result;
     }
 
     public Task<ProjectSummary> CreateProjectAsync(DeploySession session, string orgName, string name, CancellationToken cancellationToken = default)
@@ -81,8 +77,10 @@ public sealed class DeployApiClient : IDeployApiClient
             session,
             HttpMethod.Post,
             $"/orgs/{Segment(org)}/projects",
-            new { name },
-            cancellationToken);
+            new CreateProjectRequest { Name = name },
+            GetTypeInfo<ProjectSummary>(),
+            cancellationToken,
+            payloadTypeInfo: GetTypeInfo<CreateProjectRequest>());
     }
 
     public Task<DeploymentCreated> CreateDeploymentAsync(
@@ -100,16 +98,18 @@ public sealed class DeployApiClient : IDeployApiClient
             session,
             HttpMethod.Post,
             "/cli/deploy",
-            new
+            new CreateDeploymentRequest
             {
-                orgName = org,
-                projectName = project,
-                environment,
-                branch,
-                commitSha,
-                artifactLocation
+                OrgName = org,
+                ProjectName = project,
+                Environment = environment,
+                Branch = branch,
+                CommitSha = commitSha,
+                ArtifactLocation = artifactLocation
             },
-            cancellationToken);
+            GetTypeInfo<DeploymentCreated>(),
+            cancellationToken,
+            payloadTypeInfo: GetTypeInfo<CreateDeploymentRequest>());
     }
 
     public async Task<UploadedArtifact> UploadArtifactAsync(
@@ -166,7 +166,7 @@ public sealed class DeployApiClient : IDeployApiClient
         }
 
         await using var responseStream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var result = await JsonSerializer.DeserializeAsync<UploadedArtifact>(responseStream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        var result = await JsonSerializer.DeserializeAsync(responseStream, GetTypeInfo<UploadedArtifact>(), cancellationToken).ConfigureAwait(false);
 
         if (result is null)
         {
@@ -183,6 +183,7 @@ public sealed class DeployApiClient : IDeployApiClient
             HttpMethod.Get,
             $"/cli/logs/{deploymentId}",
             null,
+            GetTypeInfo<DeploymentLogInfo>(),
             cancellationToken);
     }
 
@@ -195,6 +196,7 @@ public sealed class DeployApiClient : IDeployApiClient
             HttpMethod.Get,
             $"/cli/env/{Segment(org)}/{Segment(project)}/{envSegment}",
             null,
+            GetTypeInfo<EnvConfigResult>(),
             cancellationToken);
     }
 
@@ -214,13 +216,13 @@ public sealed class DeployApiClient : IDeployApiClient
     {
         var (org, project) = EnsureNames(orgName, projectName);
         var envSegment = environment.ToString();
-        await SendAsync<object>(
+        await SendAsync(
             session,
             HttpMethod.Post,
             $"/orgs/{Segment(org)}/projects/{Segment(project)}/config/{envSegment}",
             request,
             cancellationToken,
-            useEnumStrings: false).ConfigureAwait(false);
+            payloadTypeInfo: GetTypeInfo<ConfigUpsertRequest>(useEnumStrings: false)).ConfigureAwait(false);
     }
 
     public Task<RollbackResult> RollbackAsync(DeploySession session, string orgName, string projectName, Guid targetDeploymentId, CancellationToken cancellationToken = default)
@@ -230,13 +232,15 @@ public sealed class DeployApiClient : IDeployApiClient
             session,
             HttpMethod.Post,
             "/cli/rollback",
-            new
+            new RollbackRequest
             {
-                orgName = org,
-                projectName = project,
-                targetDeploymentId
+                OrgName = org,
+                ProjectName = project,
+                TargetDeploymentId = targetDeploymentId
             },
-            cancellationToken);
+            GetTypeInfo<RollbackResult>(),
+            cancellationToken,
+            payloadTypeInfo: GetTypeInfo<RollbackRequest>());
     }
 
     public async Task<RegisterResult> RegisterUserAsync(string apiBaseUrl, string email, string password, CancellationToken cancellationToken = default)
@@ -250,9 +254,11 @@ public sealed class DeployApiClient : IDeployApiClient
             new DeploySession(apiBaseUrl, string.Empty), // no auth header needed for register
             HttpMethod.Post,
             "/users/register",
-            new { email, password },
-            cancellationToken,
-            includeUserHeader: false).ConfigureAwait(false);
+            new RegisterUserRequest { Email = email, Password = password },
+            responseTypeInfo: GetTypeInfo<RegisterResult>(),
+            cancellationToken: cancellationToken,
+            includeUserHeader: false,
+            payloadTypeInfo: GetTypeInfo<RegisterUserRequest>()).ConfigureAwait(false);
     }
 
     private async Task<IReadOnlyList<DomainInfo>> SendDomainsAsync(DeploySession session, string orgName, string projectName, CancellationToken cancellationToken)
@@ -262,12 +268,21 @@ public sealed class DeployApiClient : IDeployApiClient
             HttpMethod.Get,
             $"/cli/domains/{Segment(orgName)}/{Segment(projectName)}",
             null,
+            GetTypeInfo<List<DomainInfo>>(),
             cancellationToken).ConfigureAwait(false);
 
         return domains;
     }
 
-    private async Task<T> SendAsync<T>(DeploySession session, HttpMethod method, string path, object? payload, CancellationToken cancellationToken, bool includeUserHeader = true, bool useEnumStrings = true)
+    private async Task<T> SendAsync<T>(
+        DeploySession session,
+        HttpMethod method,
+        string path,
+        object? payload,
+        JsonTypeInfo<T> responseTypeInfo,
+        CancellationToken cancellationToken,
+        bool includeUserHeader = true,
+        JsonTypeInfo? payloadTypeInfo = null)
     {
         var baseUri = BuildBaseUri(session.ApiBaseUrl);
         var requestUri = new Uri(baseUri, path);
@@ -280,8 +295,12 @@ public sealed class DeployApiClient : IDeployApiClient
 
         if (payload is not null)
         {
-            var opts = useEnumStrings ? _jsonOptions : _jsonOptionsNoEnum;
-            request.Content = JsonContent.Create(payload, options: opts);
+            if (payloadTypeInfo is null)
+            {
+                throw new InvalidOperationException($"No JSON type info registered for payload type '{payload.GetType().Name}'.");
+            }
+
+            request.Content = JsonContent.Create(payload, payloadTypeInfo);
         }
 
         using var client = _httpClientFactory.CreateClient(HttpClientNames.Deploy);
@@ -305,7 +324,7 @@ public sealed class DeployApiClient : IDeployApiClient
         }
 
         await using var stream = await response.Content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
-        var result = await JsonSerializer.DeserializeAsync<T>(stream, _jsonOptions, cancellationToken).ConfigureAwait(false);
+        var result = await JsonSerializer.DeserializeAsync(stream, responseTypeInfo, cancellationToken).ConfigureAwait(false);
 
         if (result is null)
         {
@@ -313,6 +332,50 @@ public sealed class DeployApiClient : IDeployApiClient
         }
 
         return result;
+    }
+
+    private async Task SendAsync(
+        DeploySession session,
+        HttpMethod method,
+        string path,
+        object? payload,
+        CancellationToken cancellationToken,
+        bool includeUserHeader = true,
+        JsonTypeInfo? payloadTypeInfo = null)
+    {
+        var baseUri = BuildBaseUri(session.ApiBaseUrl);
+        var requestUri = new Uri(baseUri, path);
+
+        using var request = new HttpRequestMessage(method, requestUri);
+        if (includeUserHeader)
+        {
+            request.Headers.Add("X-User-Email", session.UserEmail);
+        }
+
+        if (payload is not null)
+        {
+            if (payloadTypeInfo is null)
+            {
+                throw new InvalidOperationException($"No JSON type info registered for payload type '{payload.GetType().Name}'.");
+            }
+
+            request.Content = JsonContent.Create(payload, payloadTypeInfo);
+        }
+
+        using var client = _httpClientFactory.CreateClient(HttpClientNames.Deploy);
+        using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken).ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var detail = await SafeReadAsync(response, cancellationToken).ConfigureAwait(false);
+            var message = $"API request failed ({(int)response.StatusCode} {response.ReasonPhrase}).";
+            if (!string.IsNullOrWhiteSpace(detail))
+            {
+                message += $" {detail}";
+            }
+
+            throw new InvalidOperationException(message);
+        }
     }
 
     private static string EnsureOrg(string orgName)
@@ -347,6 +410,13 @@ public sealed class DeployApiClient : IDeployApiClient
         return uri;
     }
 
+    private static JsonTypeInfo<T> GetTypeInfo<T>(bool useEnumStrings = true)
+    {
+        var context = useEnumStrings ? (JsonSerializerContext)DeployJsonContext.Default : DeployJsonNumericContext.Default;
+        return (JsonTypeInfo<T>?)context.GetTypeInfo(typeof(T))
+            ?? throw new InvalidOperationException($"No JSON type info registered for '{typeof(T).Name}'.");
+    }
+
     private static async Task<string> SafeReadAsync(HttpResponseMessage response, CancellationToken cancellationToken)
     {
         try
@@ -358,4 +428,5 @@ public sealed class DeployApiClient : IDeployApiClient
             return string.Empty;
         }
     }
+
 }

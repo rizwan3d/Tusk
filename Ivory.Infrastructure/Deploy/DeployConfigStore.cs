@@ -7,12 +7,6 @@ namespace Ivory.Infrastructure.Deploy;
 public sealed class DeployConfigStore : IDeployConfigStore
 {
     private readonly string _configPath;
-    private readonly JsonSerializerOptions _options = new()
-    {
-        PropertyNameCaseInsensitive = true,
-        WriteIndented = true,
-        TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
-    };
 
     public DeployConfigStore()
     {
@@ -30,7 +24,7 @@ public sealed class DeployConfigStore : IDeployConfigStore
         try
         {
             await using var stream = File.OpenRead(_configPath);
-            var config = await JsonSerializer.DeserializeAsync<DeployCliConfig>(stream, _options, cancellationToken).ConfigureAwait(false);
+            var config = await JsonSerializer.DeserializeAsync(stream, DeployJsonContext.Default.DeployCliConfig, cancellationToken).ConfigureAwait(false);
             return config ?? new DeployCliConfig();
         }
         catch
@@ -45,6 +39,8 @@ public sealed class DeployConfigStore : IDeployConfigStore
         Directory.CreateDirectory(Path.GetDirectoryName(_configPath)!);
 
         await using var stream = File.Create(_configPath);
-        await JsonSerializer.SerializeAsync(stream, config, _options, cancellationToken).ConfigureAwait(false);
+        await using var writer = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true });
+        JsonSerializer.Serialize(writer, config, DeployJsonContext.Default.DeployCliConfig);
+        await writer.FlushAsync(cancellationToken).ConfigureAwait(false);
     }
 }
